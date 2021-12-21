@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<container xmlns="http://symfony.com/schema/dic/services"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://symfony.com/schema/dic/services
+        http://symfony.com/schema/dic/services/services-1.0.xsd">
+    <services>
+
+        <service id="tmc_settings.settings_manager" class="TallmanCode\SettingsBundle\Manager\SettingsManager">
+            <argument type="service" id="doctrine.orm.entity_manager" />
+            <argument type="service" id="tmc_settings.settings_validator" />
+            <argument type="service" id="annotations.reader" />
+        </service>
+
+        <service id="TallmanCode\SettingsBundle\Manager\SettingsManager" alias="tmc_settings.settings_manager" />
+
+        <service id="tmc_settings.tmc_settings_persister" class="TallmanCode\SettingsBundle\DataPersister\TmcSettingsPersister" decorates="api_platform.doctrine.orm.data_persister">
+            <argument type="service" id="tmc_settings.tmc_settings_persister.inner" />
+            <argument type="service" id="annotations.reader" />
+            <argument type="service" id="tmc_settings.settings_manager" />
+        </service>
+
+        <service id="tmc_settings.tmc_settings_normalizer" class="TallmanCode\SettingsBundle\Serializer\SettingsNormalizer" decorates="api_platform.jsonld.normalizer.item">
+            <argument type="service" id="tmc_settings.tmc_settings_normalizer.inner" />
+            <argument type="service" id="annotations.reader" />
+            <argument type="service" id="tmc_settings.settings_manager" />
+        </service>
+
+        <service id="tmc_settings.abstract_tmc_settings" class="TallmanCode\SettingsBundle\Entity\AbstractTmcSettings"/>
+
+        <service id="tmc_settings.annotation.tmc_settings_group" class="TallmanCode\SettingsBundle\Annotation\TmcSettingsGroup"/>
+
+        <service id="tmc_settings.annotation.tmc_settings_owner" class="TallmanCode\SettingsBundle\Annotation\TmcSettingsOwner"/>
+
+        <service id="tmc_settings.annotation.tmc_settings_resource" class="TallmanCode\SettingsBundle\Annotation\TmcSettingsResource"/>
+
+        <service id="TallmanCode\SettingsBundle\Repository\DynamicSettingRepository" class="TallmanCode\SettingsBundle\Repository\DynamicSettingRepository" autoconfigure="true" autowire="true"/>
+
+        <service id="tmc_settings.settings_validator" class="TallmanCode\SettingsBundle\Validator\SettingsValidator" />
+
+    </services>
+</container>

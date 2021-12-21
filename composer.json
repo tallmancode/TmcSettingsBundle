@@ -1,0 +1,15 @@
+{
+    "name": "tallmancode/settings-bundle",
+    "autoload": {
+        "psr-4": {
+            "Tallmancode\\SettingsBundle\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Tallmancode",
+            "email": "steve@tallmancode.co.za"
+        }
+    ],
+    "require": {}
+}
