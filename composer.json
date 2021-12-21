@@ -2,10 +2,11 @@
     "name": "tallmancode/settings-bundle",
     "autoload": {
         "psr-4": {
-            "Tallmancode\\SettingsBundle\\": "src/"
+            "TallmanCode\\SettingsBundle\\": "src/"
         }
     },
-    "type": "library",
+    "license": "MIT",
+    "type": "symfony-bundle",
     "authors": [
         {
             "name": "Tallmancode",
