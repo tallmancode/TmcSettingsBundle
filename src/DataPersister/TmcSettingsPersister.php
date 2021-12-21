@@ -3,10 +3,8 @@
 
 namespace TallmanCode\SettingsBundle\DataPersister;
 
-
 use ApiPlatform\Core\Action\NotFoundAction;
 use ApiPlatform\Core\DataPersister\ContextAwareDataPersisterInterface;
-use App\Entity\Restaurants\Restaurant;
 use Doctrine\Common\Annotations\Reader;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;

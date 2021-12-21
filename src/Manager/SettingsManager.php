@@ -59,7 +59,7 @@ class SettingsManager implements SettingsManagerInterface
             $propertyAnnotation = $this->reader->getPropertyAnnotation($reflectionProperty, TmcSettingsGroup::class);
             $group = $propertyAnnotation->getGroup();
             $targetClass = $propertyAnnotation->getTargetClass();
-            $settings = $this->getSettings($owner, $targetClass, $group);
+            $settings = $this->getSettings($targetClass, $owner, $group);
             $setterName = 'set'.ucfirst($reflectionProperty->getName());
             $owner->$setterName($settings);
         }
@@ -79,7 +79,7 @@ class SettingsManager implements SettingsManagerInterface
         $propertyAnnotation = $this->reader->getPropertyAnnotation($reflectionProperty, TmcSettingsGroup::class);
         $group = $propertyAnnotation->getGroup();
         $targetClass = $propertyAnnotation->getTargetClass();
-        $settings = $this->getSettings($owner, $targetClass, $group);
+        $settings = $this->getSettings($targetClass, $owner, $group);
         $setterName = 'set'.ucfirst($reflectionProperty->getName());
         $owner->$setterName($settings);
         return $owner;
@@ -88,7 +88,7 @@ class SettingsManager implements SettingsManagerInterface
     /**
      * @throws JsonException
      */
-    public function getSettings(SettingsOwnerInterface $owner, $targetClass, $group = null)
+    public function getSettings($targetClass, SettingsOwnerInterface $owner = null , $group = null)
     {
         $validator = new $this->settingsValidator([], $this->defaults_config);
         $validator->validateGroup($group);
@@ -309,20 +309,21 @@ class SettingsManager implements SettingsManagerInterface
     /**
      * @throws JsonException
      */
-    private function getSettingsFromRepo(SettingsOwnerInterface $owner, $group = null)
+    private function getSettingsFromRepo(SettingsOwnerInterface $owner = null, $group = null)
     {
-        $relationClass = get_class($owner);
-        $relationId = $owner->getIdentifier();
+        $relationId = null;
+        $relationClass = null;
+
+        if($owner){
+            $relationClass = get_class($owner);
+            $relationId = $owner->getIdentifier();
+        }
 
         if ($group !== null) {
             $dynamicSetting = $this->repo->findOneBy(['relationClass' => $relationClass, 'relationId' => $relationId]);
         } else {
             $dynamicSetting = $this->repo->findOneBy(['relationClass' => $relationClass, 'relationId' => $relationId, 'groupName' => $group]);
         }
-
-//        if ($dynamicSetting) {
-//            return json_decode($dynamicSetting->getPayload(), true, 512, JSON_THROW_ON_ERROR);
-//        }
 
         return $dynamicSetting;
     }
