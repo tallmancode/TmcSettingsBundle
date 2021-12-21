@@ -5,6 +5,7 @@
             "Tallmancode\\SettingsBundle\\": "src/"
         }
     },
+    "type": "library",
     "authors": [
         {
             "name": "Tallmancode",
