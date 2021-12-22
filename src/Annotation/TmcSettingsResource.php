@@ -9,10 +9,10 @@ use Doctrine\Common\Annotations\Annotation\NamedArgumentConstructor;
 class TmcSettingsResource
 {
 
-    private string $relationClass;
+    private ?string $relationClass;
     private string $settingsGroup;
 
-    public function __construct(string $relationClass, string $settingsGroup)
+    public function __construct(?string $relationClass, string $settingsGroup)
     {
         $this->relationClass = $relationClass;
         $this->settingsGroup = $settingsGroup;
@@ -21,7 +21,7 @@ class TmcSettingsResource
     /**
      * @return string
      */
-    public function getRelationClass(): string
+    public function getRelationClass(): ?string
     {
         return $this->relationClass;
     }

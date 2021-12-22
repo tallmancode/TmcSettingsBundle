@@ -71,7 +71,7 @@ class DynamicSetting
         return $this->relationClass;
     }
 
-    public function setRelationClass(string $relationClass): self
+    public function setRelationClass(?string $relationClass): self
     {
         $this->relationClass = $relationClass;
 
@@ -83,7 +83,7 @@ class DynamicSetting
         return $this->relationId;
     }
 
-    public function setRelationId(int $relationId): self
+    public function setRelationId(?int $relationId): self
     {
         $this->relationId = $relationId;
 

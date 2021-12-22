@@ -39,4 +39,24 @@ class SettingsHelper
 
         throw new InvalidSettingsClassException($targetClass);
     }
+
+    /**
+     * @throws \ReflectionException
+     * @throws \JsonException
+     */
+    public function saveSettings($targetClass)
+    {
+        $annotation = $this->reader->getClassAnnotation(new \ReflectionClass($targetClass), TmcSettingsResource::class);
+
+        if(null !== $annotation){
+            return $this->settingsManager->save(
+                $targetClass,
+                $annotation->getRelationClass(),
+                $annotation->getSettingsGroup()
+            );
+        }
+
+        throw new InvalidSettingsClassException($targetClass);
+
+    }
 }
