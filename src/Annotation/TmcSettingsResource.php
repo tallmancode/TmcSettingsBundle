@@ -12,7 +12,7 @@ class TmcSettingsResource
     private ?string $relationClass;
     private string $settingsGroup;
 
-    public function __construct(?string $relationClass, string $settingsGroup)
+    public function __construct(string $settingsGroup, ?string $relationClass = null)
     {
         $this->relationClass = $relationClass;
         $this->settingsGroup = $settingsGroup;
