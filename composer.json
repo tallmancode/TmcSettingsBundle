@@ -19,13 +19,5 @@
         "symfony/dependency-injection": "^4.4 | ^5.0 | ^6.0",
         "symfony/deprecation-contracts": "^2.2 | ^3.0",
         "symfony/http-kernel": "^4.4 | ^5.0 | ^6.0"
-    },
-    "extra": {
-        "symfony": {
-            "endpoint": [
-                "https://api.github.com/repos/tallmancode/tallmanflex/contents/index.json",
-                "flex://defaults"
-            ]
-        }
     }
 }

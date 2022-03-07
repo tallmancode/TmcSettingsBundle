@@ -8,14 +8,14 @@ use Doctrine\Common\Annotations\Annotation\NamedArgumentConstructor;
  */
 class TmcSettingsOwner
 {
-    private $targetResources;
+    private ?array $targetResources ;
 
-    public function __construct($targetResources)
+    public function __construct(array $targetResources)
     {
         $this->targetResources = $targetResources;
     }
 
-    public function getTargetResources()
+    public function getTargetResources() : ?array
     {
         return $this->targetResources;
     }

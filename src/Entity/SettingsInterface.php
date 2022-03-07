@@ -4,7 +4,7 @@
 namespace TallmanCode\SettingsBundle\Entity;
 
 
-interface SettingsOwnerInterface
+interface SettingsInterface
 {
     public function getIdentifier();
 }

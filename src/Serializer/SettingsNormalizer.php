@@ -34,14 +34,11 @@ class SettingsNormalizer implements NormalizerInterface, SerializerAwareInterfac
     public function supportsNormalization($data, $format = null): bool
     {
         if(is_object($data)){
-
             $annotation = $this->reader->getClassAnnotation(new \ReflectionClass($data), TmcSettingsOwner::class);
             if(null !== $annotation){
                 $settingsProperties = $annotation->getTargetResources();
-
                 if(is_array($settingsProperties)){
                     $data = $this->settingsManager->getCollection($data, $settingsProperties);
-
                 }elseif(is_string($settingsProperties)){
                     $data = $this->settingsManager->get($data, $settingsProperties);
                 }else{

@@ -5,12 +5,11 @@ namespace TallmanCode\SettingsBundle\Entity;
 
 
 use ApiPlatform\Core\Annotation\ApiProperty;
-use ApiPlatform\Core\Annotation\ApiResource;
 
 /**
  * @author Steve "Tallman" Stewart <steve@tallmancode.co.za>
  */
-abstract class AbstractTmcSettings
+abstract class AbstractSettings
 {
     /**
      * @ApiProperty(identifier=true)

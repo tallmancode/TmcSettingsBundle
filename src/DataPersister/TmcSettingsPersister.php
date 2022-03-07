@@ -8,6 +8,7 @@ use ApiPlatform\Core\DataPersister\ContextAwareDataPersisterInterface;
 use Doctrine\Common\Annotations\Reader;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use TallmanCode\SettingsBundle\Annotation\TmcSettingsOwner;
 use TallmanCode\SettingsBundle\Annotation\TmcSettingsResource;
 use TallmanCode\SettingsBundle\Manager\SettingsManager;
 
@@ -28,14 +29,15 @@ class TmcSettingsPersister implements ContextAwareDataPersisterInterface
     }
 
     /**
-     * @throws \JsonException
+     * @throws \JsonException|\ReflectionException
      */
     public function supports($data, array $context = []): bool
     {
         $reflectionClass = new \ReflectionClass($data);
-
         if($annotation = $this->reader->getClassAnnotation($reflectionClass, TmcSettingsResource::class)){
-            $data = $this->settingsManager->save($data, $annotation->getRelationClass(), $annotation->getSettingsGroup());
+            $data = $this->settingsManager->persist($data, $annotation->getRelationClass(), $annotation);
+        }elseif($annotation = $this->reader->getClassAnnotation($reflectionClass, TmcSettingsOwner::class)){
+            $data->setUpdatedAt(new \DateTimeImmutable());
         }
 
         return $this->decorated->supports($data, $context);

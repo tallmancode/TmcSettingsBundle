@@ -3,17 +3,22 @@
 
 namespace TallmanCode\SettingsBundle\Manager;
 
+use DateTime;
 use Doctrine\Common\Annotations\Reader;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use JsonException;
 use ReflectionClass;
 use ReflectionException;
+use TallmanCode\SettingsBundle\Annotation\SettingsAnnotationReaderInterface;
 use TallmanCode\SettingsBundle\Annotation\TmcSettingsGroup;
-use TallmanCode\SettingsBundle\Entity\DynamicSetting;
-use TallmanCode\SettingsBundle\Entity\SettingsOwnerInterface;
+use TallmanCode\SettingsBundle\Entity\SettingsBundleSetting;
+use TallmanCode\SettingsBundle\Entity\SettingsInterface;
+use TallmanCode\SettingsBundle\Entity\TmcSettingsInterface;
 use TallmanCode\SettingsBundle\Exception\InvalidSettingsAccessorException;
 use TallmanCode\SettingsBundle\Exception\InvalidSettingsClassException;
+use TallmanCode\SettingsBundle\Factory\SettingsClassFactory;
+use TallmanCode\SettingsBundle\Util\Uuid;
 use TallmanCode\SettingsBundle\Validator\SettingsValidator;
 use TallmanCode\SettingsBundle\Validator\SettingsValidatorInterface;
 
@@ -22,7 +27,7 @@ use TallmanCode\SettingsBundle\Validator\SettingsValidatorInterface;
  */
 class SettingsManager implements SettingsManagerInterface
 {
-    private array $defaults_config;
+    private Configuration $config;
 
     private EntityManagerInterface $manager;
 
@@ -31,248 +36,164 @@ class SettingsManager implements SettingsManagerInterface
     private $repo;
 
     private Reader $reader;
+    private SettingsAnnotationReaderInterface $annotationReader;
+    private PersistedSettingsInterface $persistedSettings;
 
     public function __construct(
-        EntityManagerInterface     $manager,
-        SettingsValidatorInterface $settingsValidator,
-        Reader $reader,
-        array                      $defaults_config = []
+        Configuration                     $configuration,
+        PersistedSettingsInterface        $persistedSettings,
+        EntityManagerInterface            $manager,
+        Reader                            $reader,
+        SettingsAnnotationReaderInterface $annotationReader
     )
     {
+
+        $this->config = $configuration;
         $this->manager = $manager;
-        $this->defaults_config = $defaults_config;
-        $this->settingsValidator = $settingsValidator;
-        $this->repo = $this->manager->getRepository(DynamicSetting::class);
+        $this->repo = $this->manager->getRepository(SettingsBundleSetting::class);
         $this->reader = $reader;
+        $this->annotationReader = $annotationReader;
+        $this->persistedSettings = $persistedSettings;
     }
 
-    /**
-     * @throws ReflectionException
-     * @throws JsonException
-     */
-    public function getCollection(SettingsOwnerInterface $owner, $settingsProperties): SettingsOwnerInterface
-    {
-        $reflectionClass = new ReflectionClass($owner);
-
-        foreach($settingsProperties as $settingProperty){
-            $reflectionProperty = $reflectionClass->getProperty($settingProperty);
-            $propertyAnnotation = $this->reader->getPropertyAnnotation($reflectionProperty, TmcSettingsGroup::class);
-            $group = $propertyAnnotation->getGroup();
-            $targetClass = $propertyAnnotation->getTargetClass();
-            $settings = $this->getSettings($targetClass, $owner, $group);
-            $setterName = 'set'.ucfirst($reflectionProperty->getName());
-            $owner->$setterName($settings);
-        }
-
-        return $owner;
-    }
-
-
-    /**
-     * @throws ReflectionException
-     * @throws JsonException
-     */
-    public function get(SettingsOwnerInterface $owner, $settingProperty): SettingsOwnerInterface
-    {
-        $reflectionClass = new ReflectionClass($owner);
-        $reflectionProperty = $reflectionClass->getProperty($settingProperty);
-        $propertyAnnotation = $this->reader->getPropertyAnnotation($reflectionProperty, TmcSettingsGroup::class);
-        $group = $propertyAnnotation->getGroup();
-        $targetClass = $propertyAnnotation->getTargetClass();
-        $settings = $this->getSettings($targetClass, $owner, $group);
-        $setterName = 'set'.ucfirst($reflectionProperty->getName());
-        $owner->$setterName($settings);
-        return $owner;
-    }
-
-    /**
-     * @throws JsonException
-     */
-    public function getSettings($targetClass, SettingsOwnerInterface $owner = null , $group = null)
-    {
-        $validator = new $this->settingsValidator([], $this->defaults_config);
-        $validator->validateGroup($group);
-
-        $settingsClass = $this->initTargetClass($targetClass);
-        $persistedSettings = $this->getSettingsFromRepo($owner, $group);
-
-        if($persistedSettings){
-            $settingsClass = $this->mapProperties($settingsClass, json_decode($persistedSettings->getPayload(), true, 512, JSON_THROW_ON_ERROR), $group);
-
-            if(is_string($persistedSettings->getUuid())){
-                $settingsClass->setUuid($persistedSettings->getUuid());
-            }
-
-        }
-
-        return $this->mapDefaults($settingsClass, $group);
-    }
-
-
-    public function mapProperties($settingsClass, $persistedSettings, $group)
-    {
-        foreach ($persistedSettings as $name => $setting) {
-            $setterName = 'set' . ucfirst($name);
-            if (method_exists($settingsClass, $setterName)) {
-                $settingsClass->$setterName($setting);
-            }
-        }
-        return $settingsClass;
-    }
 
     /**
      * @throws JsonException
      * @throws Exception
      */
-    public function save($data, $relationClass, $group)
+    public function find($settingClass, $relationClass = null, $annotation = null, $group = null)
     {
-        $this->validateTargetClass($data);
-
-        $persistedSettings = $this->getPersistedSettings($relationClass, $data->getRelationId(), $group, $data->getUuid());
-
-        if (!$persistedSettings) {
-            $persistedSettings = $this->setupDynamicSettings($relationClass, $data, $group);
+        if (null === $annotation) {
+            $annotation = $this->annotationReader->getAnnotationsForClass($settingClass);
         }
 
-        $data->setUuid($persistedSettings->getUuid());
-
-        $existingPayload = [];
-        if($persistedSettings->getPayload()){
-            $existingPayload = json_decode($persistedSettings->getPayload(), true, 512, JSON_THROW_ON_ERROR);
+        if (null === $group) {
+            $group = $this->annotationReader->getAnnotationGroup(null, $annotation);
         }
 
+        $factory = new SettingsClassFactory();
+        $settingClass = $factory->build($settingClass);
+        $persistedSettings = $this->persistedSettings->get($relationClass, $group);
+        return $factory->setProperties($settingClass, $this->config, $persistedSettings, $group, $annotation);
+    }
+
+    public function populateRelations(SettingsInterface $settingsOwner)
+    {
+        $annotation = $this->annotationReader->getAnnotationsForClass($settingsOwner);
+
+        if ($annotation && $targetResources = $annotation->getTargetResources()) {
+            foreach ($targetResources as $targetResource) {
+                $setter = $this->accessorName($targetResource, 'setter');
+                $anno = $this->annotationReader->getPropertyAnnotation($targetResource, $settingsOwner);
+                $test = $this->find($anno->getTargetClass(), $settingsOwner, null, $anno->getGroup());
+                $settingsOwner->$setter($test);
+            }
+        }
+    }
+
+
+    /**
+     * @throws JsonException
+     * @throws Exception
+     */
+    public function persist(TmcSettingsInterface $settingEntity, $relationClass = null, $annotation = null)
+    {
+        $group = null;
+        if (null === $annotation) {
+            $annotation = $this->annotationReader->getAnnotationsForClass($settingEntity);
+            $group = $this->annotationReader->getAnnotationGroup(null, $annotation);
+        } else {
+            $group = $annotation->getSettingsGroup();
+        }
+
+        $persistedSettings = $this->persistedSettings->get($relationClass, $group);
+        $payload = $persistedSettings ? $this->persistedSettings->getPayload($persistedSettings) : null;
+        $annotatedDefaults = $annotation->getDefaults();
+        $configDefaults = $this->config->getGroupDefaults($group, $annotatedDefaults);
 
         $mergeResponse = $this->mergeProperties(
-            $data,
-            $group,
-            $existingPayload
+            $settingEntity,
+            $configDefaults,
+            $payload,
         );
+        if (!$persistedSettings) {
+            $persistedSettings = $this->setupSettingsBundleSettings($relationClass, $settingEntity, $group, $settingEntity->getUuid());
+            $persistedSettings->setGroupName($group);
+        }
 
         $persistedSettings->setPayload($mergeResponse['payload']);
-        $persistedSettings->setUpdatedAt(new \DateTime());
+        $persistedSettings->setUpdatedAt(new DateTime());
         $this->manager->persist($persistedSettings);
         $this->manager->flush();
-
-        return $mergeResponse['data'];
-    }
-
-    private function validateTargetClass($targetClass)
-    {
-        if(!is_object($targetClass)){
-            throw new InvalidSettingsClassException($targetClass);
+        $responseEntity = $mergeResponse['data'];
+        if (!$responseEntity->getUuid()) {
+            $responseEntity->setUuid($persistedSettings->getUuid());
         }
-    }
-
-    private function getPersistedSettings($relationClass, $relationId, $group, $uuid = null)
-    {
-        $findValues = [
-            'relationClass' => $relationClass,
-            'relationId' => $relationId,
-            'groupName' => $group
-        ];
-
-        if($uuid){
-            $findValues['uuid'] = $uuid;
+        if (!$responseEntity->getRelationId()) {
+            $responseEntity->setRelationId($persistedSettings->getRelationId());
         }
 
-        return $this->repo->findOneBy($findValues);
+        return $responseEntity;
     }
 
-    /**
-     * @throws Exception
-     */
-    private function setupDynamicSettings($relationClass, $data, $group): DynamicSetting
+    public function persistRelation(SettingsInterface $settingsOwner)
     {
-        $persistedSettings = new DynamicSetting();
-        $persistedSettings->setUuid($this->generateUuid());
-        $persistedSettings->setRelationClass($relationClass);
-        $persistedSettings->setRelationId($data->getRelationId());
-        $persistedSettings->setGroupName($group);
-        $persistedSettings->setName($group);
-        $persistedSettings->setCreatedAt(new \DateTime());
-        return $persistedSettings;
-    }
+        $annotation = $this->annotationReader->getAnnotationsForClass($settingsOwner);
+        if ($annotation && $targetResources = $annotation->getTargetResources()) {
+            foreach ($targetResources as $targetResource) {
+                $getter = $this->accessorName($targetResource, 'getter');
+                if (method_exists($settingsOwner, $getter)) {
+                    $settingEntity = $settingsOwner->$getter();
 
-    /**
-     * @throws Exception
-     */
-    private function generateUuid(): string
-    {
-       $prefix =  bin2hex(random_bytes(4));
-        return uniqid($prefix, false);
-    }
+                    if (!$settingEntity) {
+                        $resourceAnnotation = $this->annotationReader->getPropertyAnnotation($targetResource, $settingsOwner);
+                        $targetClassName = $resourceAnnotation->getTargetClass();
+                        $settingEntity = new $targetClassName;
+                    }
 
-    /**
-     * @throws Exception
-     */
-    private function initTargetClass($targetClass)
-    {
-        if (is_string($targetClass)) {
-            $targetClass = new $targetClass;
-        }
-
-//        if(!is_object($targetClass)){
-//            throw new InvalidSettingsClassException($targetClass);
-//        }
-
-        if(!$targetClass->getUuid()){
-            $UUID = $this->generateUuid();
-            $targetClass->setUuid($UUID);
-        }
-
-        return $targetClass;
-    }
-
-    private function mapDefaults($settingsClass, $group)
-    {
-        $reflectionClass = new ReflectionClass($settingsClass);
-        $defaults = $this->getDefaults($group);
-        foreach ($reflectionClass->getProperties() as $reflectionProperty) {
-            if (!in_array($reflectionProperty->getName(), ['uuid', 'relationId'])) {
-                $getterName = 'get' . ucfirst($reflectionProperty->getName());
-                if (method_exists($settingsClass, $getterName)) {
-                    $propertyValue = $settingsClass->$getterName();
-                    if ($propertyValue === null) {
-                        $setterName = 'set' . ucfirst($reflectionProperty->getName());
-                        $settingsClass->$setterName($defaults[$reflectionProperty->getName()]['default']);
+                    if (!is_object($settingEntity) && is_array($settingEntity)) {
+                        $resourceAnnotation = $this->annotationReader->getPropertyAnnotation($targetResource, $settingsOwner);
+                        $targetClassName = $resourceAnnotation->getTargetClass();
+                        $targetClass = new $targetClassName;
+                        foreach ($settingEntity as $key => $value) {
+                            $setter = $this->accessorName($key, 'getter');
+                            if (method_exists($targetClass, $setter)) {
+                                $targetClass->$setter($value);
+                            }
+                        }
+                        $settingEntity = $targetClass;
                     }
                 }
+
+                $settings = $this->persist($settingEntity, $settingsOwner);
             }
         }
-
-        return $settingsClass;
     }
 
-    /**
-     * @throws JsonException
-     */
-    private function mergeProperties($data, $group, $existingPayload = null): array
+    public function mergeProperties($data, $configDefaults, $existingPayload = null): array
     {
         $reflectionClass = new ReflectionClass($data);
-        $reflectionProperties = $reflectionClass->getProperties();
         $payloadArray = [];
-        $defaults = $this->getDefaults($group);
 
-        foreach ($reflectionProperties as $reflectionProperty) {
+        foreach ($reflectionClass->getProperties() as $reflectionProperty) {
             $propertyKey = $reflectionProperty->getName();
             $getterName = $this->accessorName($propertyKey, 'getter');
             $setterName = $this->accessorName($propertyKey, 'setter');
             $propertyValue = $data->$getterName();
-
-            if($propertyValue === null){
-                if(array_key_exists($propertyKey, $existingPayload)){
+            if ($propertyValue === null) {
+                if (null !== $existingPayload && array_key_exists($propertyKey, $existingPayload)) {
                     $data->$setterName($existingPayload[$propertyKey]);
                     $payloadArray[$propertyKey] = $propertyValue;
-                } elseif(array_key_exists($propertyKey, $defaults) ) {
+                } elseif (array_key_exists($propertyKey, $configDefaults)) {
                     //validation could happen here
-                    if(isset($defaults[$propertyKey]['default'])){
-                        $data->$setterName($defaults[$propertyKey]['default']);
+                    if (isset($defaults[$propertyKey]['value'])) {
+                        $data->$setterName($configDefaults[$propertyKey]['value']);
                     }
                 }
                 continue;
             }
 
-            if(array_key_exists($propertyKey, $defaults) && $propertyValue !== $defaults[$propertyKey]['default']){
+            if (array_key_exists($propertyKey, $configDefaults) && $propertyValue !== $configDefaults[$propertyKey]['value']) {
                 $payloadArray[$propertyKey] = $propertyValue;
             }
         }
@@ -283,18 +204,44 @@ class SettingsManager implements SettingsManagerInterface
         ];
     }
 
-    private function getDefaults($group)
+    /**
+     * @throws Exception
+     */
+    public function setupSettingsBundleSettings($relationClass, $data, $group, $uuid = null): SettingsBundleSetting
     {
-        return $this->defaults_config[$group];
+        $relationClassName = null;
+
+        if (!$uuid) {
+            $uuidGenerator = new Uuid();
+            $uuid = $uuidGenerator->generate();
+        }
+
+        if ($relationClass) {
+            if (is_string($relationClass)) {
+                $relationClassName = $relationClass;
+                $relationClass = new $relationClass;
+            } else {
+                $relationClassName = $relationClass::class;
+            }
+        }
+
+        $persistedSettings = new SettingsBundleSetting();
+        $persistedSettings->setUuid($uuid);
+        $persistedSettings->setRelationClass($relationClassName);
+        $persistedSettings->setRelationId($relationClass ? $relationClass->getIdentifier() : null);
+        $persistedSettings->setGroupName($group);
+        $persistedSettings->setName($group);
+        $persistedSettings->setCreatedAt(new DateTime());
+        return $persistedSettings;
     }
 
-    private function accessorName($propertyName, $accessorType): string
+    public function accessorName($propertyName, $accessorType): string
     {
-        if($accessorType !== 'getter' && $accessorType !== 'setter'){
+        if ($accessorType !== 'getter' && $accessorType !== 'setter') {
             throw new InvalidSettingsAccessorException();
         }
         $prefix = '';
-        switch($accessorType){
+        switch ($accessorType) {
             case 'getter':
                 $prefix = 'get';
                 break;
@@ -303,29 +250,16 @@ class SettingsManager implements SettingsManagerInterface
                 break;
         }
 
-        return $prefix.''.ucfirst($propertyName);
+        return $prefix . '' . ucfirst($propertyName);
     }
 
-    /**
-     * @throws JsonException
-     */
-    private function getSettingsFromRepo(SettingsOwnerInterface $owner = null, $group = null)
+    public function remove()
     {
-        $relationId = null;
-        $relationClass = null;
-
-        if($owner){
-            $relationClass = get_class($owner);
-            $relationId = $owner->getIdentifier();
-        }
-
-        if ($group !== null) {
-            $dynamicSetting = $this->repo->findOneBy(['relationClass' => $relationClass, 'relationId' => $relationId]);
-        } else {
-            $dynamicSetting = $this->repo->findOneBy(['relationClass' => $relationClass, 'relationId' => $relationId, 'groupName' => $group]);
-        }
-
-        return $dynamicSetting;
+        // TODO: Implement remove() method.
     }
 
+    public function getConfiguration()
+    {
+        // TODO: Implement getConfiguration() method.
+    }
 }

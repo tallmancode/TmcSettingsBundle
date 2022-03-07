@@ -10,16 +10,18 @@ class TmcSettingsResource
 {
 
     private ?string $relationClass;
-    private string $settingsGroup;
+    private ?string $settingsGroup;
+    private ?array $defaults;
 
-    public function __construct(string $settingsGroup, ?string $relationClass = null)
+    public function __construct(?string $settingsGroup = null, ?string $relationClass = null, ?array $defaults= null)
     {
         $this->relationClass = $relationClass;
         $this->settingsGroup = $settingsGroup;
+        $this->defaults = $defaults;
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getRelationClass(): ?string
     {
@@ -29,8 +31,16 @@ class TmcSettingsResource
     /**
      * @return string
      */
-    public function getSettingsGroup(): string
+    public function getSettingsGroup(): ?string
     {
         return $this->settingsGroup;
+    }
+
+    /**
+     * @return array|null
+     */
+    public function getDefaults(): ?array
+    {
+        return $this->defaults;
     }
 }

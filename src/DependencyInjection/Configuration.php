@@ -9,16 +9,30 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
 
 class Configuration implements ConfigurationInterface
 {
-
-    public function getConfigTreeBuilder()
+    public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder('tmc_settings');
         $rootNode = $treeBuilder->getRootNode();
         $rootNode
             ->children()
-                ->variableNode('default_settings')
+                ->ArrayNode('resources')
                     ->info("Array of groups of settings with a child array of key and value")
-                    ->cannotBeEmpty()
+                    ->arrayPrototype()
+                        ->children()
+                            ->arrayNode('defaults')
+                                ->arrayPrototype()
+                                    ->children()
+                                        ->scalarNode('cast')
+                                            ->defaultNull()
+                                        ->end()
+                                        ->variableNode('value')
+                                            ->defaultNull()
+                                        ->end()
+                                    ->end()
+                                ->end()
+                            ->end()
+                        ->end()
+                    ->end()
                 ->end()
             ->end();
         return $treeBuilder;

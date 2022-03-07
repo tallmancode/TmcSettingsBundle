@@ -4,50 +4,71 @@
            xsi:schemaLocation="http://symfony.com/schema/dic/services
         http://symfony.com/schema/dic/services/services-1.0.xsd">
     <services>
+        <!-- config -->
+        <service id="tmc_settings.setting_config" class="TallmanCode\SettingsBundle\Manager\Configuration"/>
+        <service id="TallmanCode\SettingsBundle\Manager\Configuration" alias="tmc_settings.setting_config"/>
 
-        <service id="tmc_settings.settings_manager" class="TallmanCode\SettingsBundle\Manager\SettingsManager">
+        <!-- persisted settings -->
+        <service id="tmc_settings.persisted_settings" class="TallmanCode\SettingsBundle\Manager\PersistedSettings">
             <argument type="service" id="doctrine.orm.entity_manager" />
-            <argument type="service" id="tmc_settings.settings_validator" />
+        </service>
+        <service id="TallmanCode\SettingsBundle\Manager\PersistedSettingsInterface" alias="tmc_settings.persisted_settings" />
+
+        <!-- Settings Annotation Reader -->
+        <service id="tmc_settings.annotation_reader" class="TallmanCode\SettingsBundle\Annotation\SettingsAnnotationReader">
             <argument type="service" id="annotations.reader" />
         </service>
+        <service id="TallmanCode\SettingsBundle\Annotation\SettingsAnnotationReaderInterface" alias="tmc_settings.annotation_reader" />
 
-        <service id="TallmanCode\SettingsBundle\Manager\SettingsManager" alias="tmc_settings.settings_manager" />
+        <!-- SettingDefaultsInterface -->
+        <service id="tmc_settings.setting_defaults" class="TallmanCode\SettingsBundle\Util\SettingDefaults"/>
+        <service id="TallmanCode\SettingsBundle\Util\SettingDefaultsInterface" alias="tmc_settings.setting_defaults"/>
 
+        <!-- Api Platform Actions Controllers -->
+        <service id="tmc_settings.controller.settings_get_action" class="TallmanCode\SettingsBundle\Controller\SettingsGetAction" public="true">
+            <argument type="service" id="tmc_settings.settings_manager"/>
+        </service>
+
+        <!-- persisters -->
         <service id="tmc_settings.tmc_settings_persister" class="TallmanCode\SettingsBundle\DataPersister\TmcSettingsPersister" decorates="api_platform.doctrine.orm.data_persister">
             <argument type="service" id="tmc_settings.tmc_settings_persister.inner" />
             <argument type="service" id="annotations.reader" />
             <argument type="service" id="tmc_settings.settings_manager" />
         </service>
 
-        <service id="tmc_settings.tmc_settings_normalizer" class="TallmanCode\SettingsBundle\Serializer\SettingsNormalizer" decorates="api_platform.jsonld.normalizer.item">
-            <argument type="service" id="tmc_settings.tmc_settings_normalizer.inner" />
-            <argument type="service" id="annotations.reader" />
-            <argument type="service" id="tmc_settings.settings_manager" />
+        <!-- Meta Factory -->
+        <service id="tmc_settings.meta_factory" class="TallmanCode\SettingsBundle\ApiPlatform\SettingsResourceMetadataFactory" decorates="api_platform.metadata.resource.metadata_factory">
+            <argument type="service" id="tmc_settings.meta_factory.inner" />
+            <argument type="service" id="TallmanCode\SettingsBundle\Annotation\SettingsAnnotationReaderInterface" />
+            <argument type="service" id="api_platform.path_segment_name_generator.underscore" />
         </service>
 
-        <service id="tmc_settings.settings_helper" class="TallmanCode\SettingsBundle\SettingsHelper">
-            <argument type="service" id="tmc_settings.settings_manager" />
+        <!-- Settings Manager -->
+        <service id="tmc_settings.settings_manager" class="TallmanCode\SettingsBundle\Manager\SettingsManager">
+            <argument type="service" id="tmc_settings.setting_config" />
+            <argument type="service" id="tmc_settings.persisted_settings" />
+            <argument type="service" id="doctrine.orm.entity_manager" />
             <argument type="service" id="annotations.reader" />
+            <argument type="service" id="TallmanCode\SettingsBundle\Annotation\SettingsAnnotationReaderInterface" />
+        </service>
+        <service id="TallmanCode\SettingsBundle\Manager\SettingsManagerInterface" alias="tmc_settings.settings_manager" />
+
+        <!-- Doctrine listeners -->
+        <service id="TallmanCode\SettingsBundle\Doctrine\EventSubscriber\TmcSettingsClassSubscriber">
+            <argument type="service" id="TallmanCode\SettingsBundle\Annotation\SettingsAnnotationReaderInterface" />
+            <argument type="service" id="tmc_settings.settings_manager" />
+            <tag name="doctrine.event_listener" event="postLoad"/>
+            <tag name="doctrine.event_listener" event="postUpdate"/>
+            <tag name="doctrine.event_listener" event="postPersist"/>
         </service>
 
-        <service id="TallmanCode\SettingsBundle\SettingsHelper" alias="tmc_settings.settings_helper" />
-
-        <service id="tmc_settings.abstract_tmc_settings" class="TallmanCode\SettingsBundle\Entity\AbstractTmcSettings"/>
-
+        <!--Annotations -->
+        <service id="tmc_settings.abstract_tmc_settings" class="TallmanCode\SettingsBundle\Entity\AbstractSettings"/>
         <service id="tmc_settings.annotation.tmc_settings_group" class="TallmanCode\SettingsBundle\Annotation\TmcSettingsGroup"/>
-
         <service id="tmc_settings.annotation.tmc_settings_owner" class="TallmanCode\SettingsBundle\Annotation\TmcSettingsOwner"/>
-
         <service id="tmc_settings.annotation.tmc_settings_resource" class="TallmanCode\SettingsBundle\Annotation\TmcSettingsResource"/>
 
-        <service id="TallmanCode\SettingsBundle\Repository\DynamicSettingRepository" class="TallmanCode\SettingsBundle\Repository\DynamicSettingRepository" autoconfigure="true" autowire="true"/>
-
-        <service id="tmc_settings.settings_validator" class="TallmanCode\SettingsBundle\Validator\SettingsValidator" />
-
-
-        <service id="tmc_settings.tmc_settings_class_subscriber" class="TallmanCode\SettingsBundle\Doctrine\EventSubscriber\TmcSettingsClassSubscriber">
-            <tag name="kernel.event_subscriber"/>
-        </service>
-
+        <!-- Settings Repo -->
+        <service id="TallmanCode\SettingsBundle\Repository\SettingsBundleRepository" class="TallmanCode\SettingsBundle\Repository\SettingsBundleRepository" autoconfigure="true" autowire="true"/>
     </services>
 </container>

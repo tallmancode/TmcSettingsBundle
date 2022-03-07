@@ -7,10 +7,10 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * Class DynamicSettings
- * @ORM\Table (name="tmc_settings")
- * @ORM\Entity(repositoryClass="TallmanCode\SettingsBundle\Repository\DynamicSettingRepository")
+ * @ORM\Table (name="settings_bundle_settting")
+ * @ORM\Entity(repositoryClass="TallmanCode\SettingsBundle\Repository\SettingsBundleRepository")
  */
-class DynamicSetting
+class SettingsBundleSetting
 {
     /**
      * @ORM\Id
