@@ -221,7 +221,7 @@ class SettingsManager implements SettingsManagerInterface
                 $relationClassName = $relationClass;
                 $relationClass = new $relationClass;
             } else {
-                $relationClassName = $relationClass::class;
+                $relationClassName = get_class($relationClass);
             }
         }
 
