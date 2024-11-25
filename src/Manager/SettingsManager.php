@@ -319,7 +319,7 @@ class SettingsManager implements SettingsManagerInterface
             $relationId = $owner->getIdentifier();
         }
 
-        if ($group !== null) {
+        if ($group === null) {
             $dynamicSetting = $this->repo->findOneBy(['relationClass' => $relationClass, 'relationId' => $relationId]);
         } else {
             $dynamicSetting = $this->repo->findOneBy(['relationClass' => $relationClass, 'relationId' => $relationId, 'groupName' => $group]);
